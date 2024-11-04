@@ -1,5 +1,13 @@
 <?php
 session_start();
+session_regenerate_id(true);
+
+// Tambahkan timeout
+if (isset($_SESSION['LAST_ACTIVITY']) && (time() - $_SESSION['LAST_ACTIVITY'] > 1800)) {
+    session_unset();
+    session_destroy();
+}
+$_SESSION['LAST_ACTIVITY'] = time();
 
 $hashed_password = '$2y$10$cLR7dHkVrRLv4PEJmZvou.gSz6o7zKqAQcxuP96oH8xqslhNfKAWq';
 
@@ -117,14 +125,31 @@ function unzip_file($zipfile) {
     }
 }
 
-// Fungsi untuk menghapus file
-function delete_file($file) {
-    if (file_exists($file)) {
-        unlink($file);
-        echo '<div class="alert alert-success">File berhasil dihapus: ' . $file . '</div>';
-    } else {
-        echo '<div class="alert alert-danger">File tidak ditemukan: ' . $file . '</div>';
+// Fungsi untuk menghapus
+function delete($path, $type = 'file') {
+    if (!file_exists($path)) {
+        return false;
     }
+    
+    if ($type == 'folder') {
+        return removeDirectory($path);
+    } else {
+        return unlink($path);
+    }
+}
+
+// Fungsi helper untuk delete folder rekursif 
+function removeDirectory($dir) {
+    if (!is_dir($dir)) {
+        return false;
+    }
+    
+    $files = array_diff(scandir($dir), array('.','..'));
+    foreach ($files as $file) {
+        $path = $dir . DIRECTORY_SEPARATOR . $file;
+        is_dir($path) ? removeDirectory($path) : unlink($path);
+    }
+    return rmdir($dir);
 }
 
 // Fungsi untuk membuat folder
@@ -184,36 +209,23 @@ function create_file($file_path, $content) {
     }
 }
 
-// Fungsi untuk mengedit nama file
-function rename_file($file, $new_name) {
-    $dir = dirname($file);
-    $new_file = $dir . '/' . $new_name;
-    if (file_exists($file)) {
-        if (!file_exists($new_file)) {
-            rename($file, $new_file);
-            echo '<div class="alert alert-success">File berhasil diubah nama menjadi: ' . $new_name . '</div>';
-        } else {
-            echo '<div class="alert alert-warning">File dengan nama yang sama sudah ada: ' . $new_name . '</div>';
-        }
-    } else {
-        echo '<div class="alert alert-danger">File tidak ditemukan: ' . $file . '</div>';
+// Fungsi untuk mengedit nama folder/file
+function rename_item($old_path, $new_name, $type = 'file') {
+    $dir = dirname($old_path);
+    $new_path = $dir . DIRECTORY_SEPARATOR . $new_name;
+    
+    if (!file_exists($old_path)) {
+        return ["success" => false, "message" => "$type tidak ditemukan"];
     }
-}
-
-// Fungsi untuk mengedit nama folder
-function rename_folder($folder, $new_name) {
-    $dir = dirname($folder);
-    $new_folder = $dir . '/' . $new_name;
-    if (file_exists($folder)) {
-        if (!file_exists($new_folder)) {
-            rename($folder, $new_folder);
-            echo '<div class="alert alert-success">Folder berhasil diubah nama menjadi: ' . $new_name . '</div>';
-        } else {
-            echo '<div class="alert alert-warning">Folder dengan nama yang sama sudah ada: ' . $new_name . '</div>';
-        }
-    } else {
-        echo '<div class="alert alert-danger">Folder tidak ditemukan: ' . $folder . '</div>';
+    
+    if (file_exists($new_path)) {
+        return ["success" => false, "message" => "$type dengan nama tersebut sudah ada"];
     }
+    
+    if (rename($old_path, $new_path)) {
+        return ["success" => true, "message" => "$type berhasil diubah nama"];
+    }
+    return ["success" => false, "message" => "Gagal mengubah nama $type"];
 }
 
 // Fungsi untuk mengubah izin file
@@ -281,7 +293,7 @@ if (isset($_POST['create_file'])) {
 }
 
 if (isset($_GET['delete'])) {
-    delete_file($dir . '/' . $_GET['delete']);
+    delete($dir . '/' . $_GET['delete']);
 }
 
 if (isset($_POST['rename_file'])) {
@@ -294,6 +306,15 @@ if (isset($_POST['rename_folder'])) {
 
 if (isset($_POST['change_permissions'])) {
     change_permissions($dir . '/' . $_POST['file_name'], $_POST['permissions']);
+}
+
+if (isset($_GET['delete_folder'])) {
+    $folder_to_delete = $dir . '/' . $_GET['delete_folder'];
+    if (delete($folder_to_delete, 'folder')) {
+        echo '<div class="alert alert-success">Folder berhasil dihapus: ' . $_GET['delete_folder'] . '</div>';
+    } else {
+        echo '<div class="alert alert-danger">Gagal menghapus folder: ' . $_GET['delete_folder'] . '</div>';
+    }
 }
 
 if (isset($_GET['download'])) {
@@ -463,6 +484,7 @@ function display_path_links($path) {
                     echo '<input type="text" name="new_name" class="form-control" placeholder="New name" required>';
                     echo '<button type="submit" name="rename_folder" class="btn btn-warning btn-sm ml-1" title="Rename"><i class="fas fa-edit"></i></button>';
                     echo '</form>';
+                    echo '<a href="?path=' . urlencode($dir) . '&delete_folder=' . urlencode($file) . '" class="btn btn-danger btn-sm ml-2" title="Delete Folder" onclick="return confirm(\'Are you sure you want to delete this folder and all its contents?\');"><i class="fas fa-trash"></i></a>';
                     echo '</div>';
                     echo '</li>';
                 } else {
