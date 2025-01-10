@@ -63,7 +63,7 @@ if (!isset($_SESSION['logged_in'])) {
     exit();
 }
 
-function executeCommand($input) {
+function executeCommand($input, $workingDir) {
     // Deteksi sistem operasi
     $isWindows = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN');
     
@@ -71,6 +71,9 @@ function executeCommand($input) {
     if ($isWindows && trim($input) === 'ls') {
         $input = 'dir';
     }
+
+    // Ubah direktori kerja
+    chdir($workingDir);
 
     $descriptors = array(
         0 => array("pipe", "r"),
@@ -108,8 +111,7 @@ function executeCommand($input) {
 // Dan perbaiki bagian untuk menangani output terminal
 if (isset($_POST['command'])) {
     $command = $_POST['command'];
-    $output = executeCommand($command);
-    // Tampilkan output dalam format yang mudah dibaca
+    $output = executeCommand($command, $dir); // Pass the current directory
 }
 
 // Fungsi untuk mengextract file
